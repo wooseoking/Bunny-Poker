@@ -1,29 +1,50 @@
 package com.wooseok.bunnypoker.domain.entity;
 
+import com.wooseok.bunnypoker.DTO.Response.GameState;
+import com.wooseok.bunnypoker.Flask.FlaskDTO.Request.CardReq;
+import com.wooseok.bunnypoker.Flask.FlaskDTO.Request.PlayerCardReq;
+import com.wooseok.bunnypoker.Flask.FlaskDTO.Response.PlayerWinnerResponse;
+import com.wooseok.bunnypoker.Flask.FlaskDTO.Util.ChangeCardToRequestString;
+import com.wooseok.bunnypoker.Flask.FlaskServiceClient;
 import com.wooseok.bunnypoker.domain.enums.GameStatus;
+import com.wooseok.bunnypoker.domain.repository.PlayerRepository;
+import jakarta.transaction.Transactional;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.jpa.repository.support.JpaRepositoryImplementation;
 
 import java.util.*;
 
 @Getter @Setter
 public class GameRoom {
+
     private String roomName;
     private final Queue<InGamePlayer> waitingPlayers;
     private final List<InGamePlayer> inGamePlayers;
     private List<Card> cardOnBoard;
     private Deck deck; // Stack<Card> cards
-    private int pot;
     private String status;
+    private int currentBettingPlayerIndex;
+    private String whoseTurn;
+    private int bigBlindTurnIdx;
+    private int smallBlindTurnIdx;
+    private final int bigBlind = 20;
+    private final int smallBlind = 10;
+    private int currentBettingAmount;
+    private int minimumBettingAmount;
+    private final FlaskServiceClient flaskServiceClient;
 
-    public GameRoom(String roomName){
+    public GameRoom(String roomName,FlaskServiceClient flaskServiceClient){
         this.roomName = roomName;
+        this.flaskServiceClient = flaskServiceClient;
         this.waitingPlayers = new ArrayDeque<>();
         this.inGamePlayers = new ArrayList<>();
         this.cardOnBoard = new ArrayList<>();
         this.deck = new Deck();
-        this.pot = 0;
         this.status = GameStatus.WAITING_FOR_PLAYERS.getDescription();
+        this.currentBettingPlayerIndex = 0;
     }
 
     public void Initialize(){
@@ -32,8 +53,7 @@ public class GameRoom {
 
         // card On board
         this.cardOnBoard = new ArrayList<>();
-        // pot size
-        this.pot = 0;
+
         // Initialize deck
         deck.initialize();
         // Initialize waiting players
@@ -43,13 +63,43 @@ public class GameRoom {
 
         // Initialize players
         for(InGamePlayer inGamePlayer : inGamePlayers){
-            inGamePlayer.setFold(false);
             inGamePlayer.setCards(new Card[2]);
+
         }
+
+        // Initialize turn
+        this.currentBettingPlayerIndex++;
+        currentBettingPlayerIndex %= inGamePlayers.size();
+
+        // Initialize whose turn
+        this.whoseTurn = inGamePlayers.get(currentBettingPlayerIndex).getPlayerId();
+
+        // Initialize big blind turn
+        this.bigBlindTurnIdx = (this.currentBettingPlayerIndex - 1) % inGamePlayers.size();
+
+        // Initialize small blind turn
+        this.smallBlindTurnIdx = (this.currentBettingPlayerIndex - 2) % inGamePlayers.size();
+
+        // Initialize current betting amount
+        this.currentBettingAmount = this.bigBlind + this.smallBlind;
+
+        // Initialize minimum betting amount
+        this.minimumBettingAmount = this.bigBlind;
     }
 
+    public GameState getGameState(){
+
+        return GameState.builder()
+                .currentBettingAmount(this.currentBettingAmount)
+                .inGamePlayerList(this.inGamePlayers)
+                .waitingPlayerList(this.waitingPlayers)
+                .cardsOnBoard(this.cardOnBoard)
+                .whoseTurn(this.whoseTurn)
+                .build();
+    }
     public void addPlayer(InGamePlayer player){
         if(player == null) return;
+
         if(GameStatus.WAITING_FOR_PLAYERS.getDescription().equals(status)){
             synchronized (inGamePlayers){
                 inGamePlayers.add(player);
@@ -60,15 +110,15 @@ public class GameRoom {
             }
         }
 
+
     }
 
     public boolean leavePlayer(String playerId){
 
         synchronized (inGamePlayers){
             for(InGamePlayer inGamePlayer : this.inGamePlayers){
-                if(inGamePlayer.isFold() && inGamePlayer.getPlayerId().equals(playerId)){
-                    inGamePlayers.remove(inGamePlayer);
-                    return true;
+                if(inGamePlayer.getPlayerId().equals(playerId)) {
+                    return false;
                 }
             }
         }
@@ -81,7 +131,7 @@ public class GameRoom {
                 }
             }
         }
-        return false;
+        return true;
     }
 
     public void shuffle(){
@@ -98,14 +148,41 @@ public class GameRoom {
         }
     }
 
+    public void action(String playerId,String action,int bettingAmount){
+        if(!inGamePlayers.get(currentBettingPlayerIndex).getPlayerId().equals(playerId)){
+            return;
+        }
+
+        switch (action) {
+            case "fold" -> fold(playerId);
+            case "check","call", "raise" -> betting(playerId, bettingAmount);
+        }
+
+        this.currentBettingPlayerIndex++;
+        this.currentBettingPlayerIndex %= inGamePlayers.size();
+    }
+
+    public void betting(String playerId,int bettingAmount){
+
+        for(InGamePlayer inGamePlayer : inGamePlayers){
+            if(inGamePlayer.getPlayerId().equals(playerId)){
+                inGamePlayer.setMoney(inGamePlayer.getMoney() - bettingAmount);
+                this.currentBettingAmount += bettingAmount;
+                this.currentBettingPlayerIndex++;
+                this.currentBettingPlayerIndex %= inGamePlayers.size();
+                this.whoseTurn = inGamePlayers.get(currentBettingPlayerIndex).getPlayerId();
+            }
+        }
+
+    }
+
     public void fold(String playerId){
         for(InGamePlayer inGamePlayer : inGamePlayers){
-            System.out.println(" 리스트에서 찾은 inGamPlayer playerId : " + inGamePlayer.getPlayerId());
-            System.out.println(" 호출된 playerId : " + playerId);
-            System.out.println("이건 호출되노!!!!!!!!!!!!!!!!");
             if(inGamePlayer.getPlayerId().equals(playerId)){
-                System.out.println("이거되냐!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                inGamePlayer.setFold(true);
+                this.inGamePlayers.remove(inGamePlayer);
+                this.currentBettingPlayerIndex %= inGamePlayers.size();
+                this.whoseTurn = inGamePlayers.get(currentBettingPlayerIndex).getPlayerId();
+                return;
             }
         }
     }
@@ -141,5 +218,40 @@ public class GameRoom {
         cardOnBoard.add(this.deck.drawCard());
     }
 
+    public boolean isEndOfGame(){
+        return this.inGamePlayers.size() == 1;
+    }
 
+    public PlayerWinnerResponse getWinnerPlayerId(){
+
+
+        List<CardReq> playerCardReqList = new ArrayList<>();
+
+        List<String> cardsOnBoardStr = new ArrayList<>();
+
+        for(Card card : cardOnBoard){
+            cardsOnBoardStr.add(ChangeCardToRequestString.changeCardToRequestString(card));
+        }
+
+        for(InGamePlayer inGamePlayer : inGamePlayers){
+
+            List<String> playerCards = new ArrayList<>();
+
+            for(Card card : inGamePlayer.getCards()){
+                playerCards.add(ChangeCardToRequestString.changeCardToRequestString(card));
+            }
+
+            playerCards.addAll(cardsOnBoardStr);
+            String playerId = inGamePlayer.getPlayerId();
+
+            playerCardReqList.add(new CardReq(playerId,playerCards));
+
+
+
+        }
+
+        PlayerCardReq playerCardReq = new PlayerCardReq(playerCardReqList);
+
+        return flaskServiceClient.evaluate(playerCardReq);
+    }
 }

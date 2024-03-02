@@ -1,18 +1,16 @@
 package com.wooseok.bunnypoker.Controller;
 
+import com.wooseok.bunnypoker.DTO.Request.BettingReq;
+import com.wooseok.bunnypoker.Exception.ResourceNotFoundException;
+import com.wooseok.bunnypoker.Flask.FlaskDTO.Response.PlayerWinnerResponse;
 import com.wooseok.bunnypoker.Service.GameService;
 import com.wooseok.bunnypoker.domain.entity.GameRoom;
-import com.wooseok.bunnypoker.domain.entity.GameState;
-import com.wooseok.bunnypoker.domain.enums.GameStatus;
-import org.slf4j.ILoggerFactory;
+import com.wooseok.bunnypoker.DTO.Response.GameState;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 
 
@@ -29,12 +27,14 @@ public class GameController {
     public ResponseEntity<?> joinGameRoom(@PathVariable String gameRoomName,@PathVariable String playerId){
         try{
             GameRoom gameRoom = gameService.JoinGameRoom(gameRoomName, playerId);
-            GameState gameState = gameService.returnGameState(gameRoomName);
 
             if (gameRoom == null) {
                 // 적절한 상태 코드와 함께 오류 메시지를 반환
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                throw new ResourceNotFoundException("Game room not found: " + gameRoomName);
             }
+            System.out.println("Game room joined: " + gameRoomName + " by " + playerId + "!");
+            GameState gameState = gameService.returnGameState(gameRoomName);
+
             return ResponseEntity.ok(gameState);
 
         } catch (Exception e) {
@@ -51,6 +51,7 @@ public class GameController {
             boolean leaved = gameService.leaveRoom(gameRoomName, playerId);
             if(leaved){
                 GameState gameState = gameService.returnGameState(gameRoomName);
+                System.out.println("Game room leaved: " + gameRoomName + " by " + playerId + "!");
                 return ResponseEntity.ok(gameState);
 
             }else{
@@ -69,7 +70,7 @@ public class GameController {
         try {
             gameService.startGame(gameRoomName);
             GameState gameState = gameService.returnGameState(gameRoomName);
-
+            System.out.println("Game started: " + gameRoomName + "!");
             return ResponseEntity.ok(gameState);
         }catch (Exception e){
             logger.error("Exception occurred while trying to start game : " + gameRoomName, e);
@@ -83,7 +84,7 @@ public class GameController {
         try {
             gameService.fold(gameRoomName,playerId);
             GameState gameState = gameService.returnGameState(gameRoomName);
-
+            System.out.println("Player " + playerId + " folded in game room: " + gameRoomName + "!");
             return ResponseEntity.ok(gameState);
         }catch (Exception e){
             logger.error("Exception occurred while folding : " + gameRoomName, e);
@@ -91,6 +92,24 @@ public class GameController {
         }
     }
 
+    // 베팅
+    @PostMapping("/betting")
+    public ResponseEntity<?> betting(@RequestBody BettingReq bettingReq){
+        try {
+            boolean betResult = gameService.betting(bettingReq.getGameRoomName(),bettingReq.getPlayerId(),bettingReq.getBettingAmount());
+
+            if(!betResult){
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Betting failed");
+            }
+
+            GameState gameState = gameService.returnGameState(bettingReq.getGameRoomName());
+            System.out.println("Player " + bettingReq.getPlayerId() + " bet " + bettingReq.getBettingAmount() + " in game room: " + bettingReq.getGameRoomName() + "!");
+            return ResponseEntity.ok(gameState);
+        }catch (Exception e){
+            logger.error("Exception occurred while betting : " + bettingReq.getGameRoomName(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
     //플랍
     @PostMapping("/preFlop/{gameRoomName}")
     public ResponseEntity<?>  preFlop(@PathVariable String gameRoomName) {
@@ -98,7 +117,8 @@ public class GameController {
 
             gameService.preFlop(gameRoomName);
             GameState gameState = gameService.returnGameState(gameRoomName);
-
+            System.out.println("Pre flop in game room: " + gameRoomName + "!");
+            System.out.println(gameState);
             return ResponseEntity.ok(gameState);
         }catch (Exception e){
             logger.error("Exception occurred while trying to pre flop : " + gameRoomName, e);
@@ -113,7 +133,7 @@ public class GameController {
 
             gameService.turn(gameRoomName);
             GameState gameState = gameService.returnGameState(gameRoomName);
-
+            System.out.println("Turn in game room: " + gameRoomName + "!");
             return ResponseEntity.ok(gameState);
 
         }catch (Exception e){
@@ -129,7 +149,7 @@ public class GameController {
 
             gameService.river(gameRoomName);
             GameState gameState = gameService.returnGameState(gameRoomName);
-
+            System.out.println( "River in game room: " + gameRoomName + "!");
             return ResponseEntity.ok(gameState);
         }catch (Exception e){
             logger.error("Exception occurred while trying to river : " + gameRoomName, e);
@@ -138,15 +158,14 @@ public class GameController {
     }
 
     // 게임 끝
-    @PostMapping("/end/{gameRoomName}")
-    public ResponseEntity<?>  end(@PathVariable String gameRoomName) {
+    @GetMapping("/winner/{gameRoomName}")
+    public ResponseEntity<?>  getWinnerFromRoomName(@PathVariable String gameRoomName) {
         try {
-            gameService.river(gameRoomName);
-            GameState gameState = gameService.returnGameState(gameRoomName);
+            PlayerWinnerResponse winnerPlayerId = gameService.getWinnerPlayerId(gameRoomName);
 
-            return ResponseEntity.ok(gameState);
+            return ResponseEntity.ok(winnerPlayerId);
         }catch (Exception e){
-            logger.error("Exception occurred while trying to river : " + gameRoomName, e);
+            logger.error("Exception occurred while trying to caculate winner : " + gameRoomName, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }

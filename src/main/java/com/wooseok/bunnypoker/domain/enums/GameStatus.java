@@ -1,5 +1,6 @@
 package com.wooseok.bunnypoker.domain.enums;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
 import lombok.Getter;
 
 @Getter

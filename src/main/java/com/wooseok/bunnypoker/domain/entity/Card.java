@@ -9,6 +9,6 @@ import lombok.Setter;
 @NoArgsConstructor
 @Getter @Setter
 public class Card {
-    private String suit; //Spade , Diamond , Heart , Clover
-    private String value; // 1,2,3,4,5,6,7,8,9,10,11,12,13
+    private String suit; // "diamonds","clubs","hearts","spades"
+    private String value; // "ace","2","3","4","5","6","7","8","9","10","jack","queen","king"
 }

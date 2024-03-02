@@ -9,18 +9,14 @@ import java.util.Stack;
 @Getter
 public class Deck {
     private Stack<Card> cards;
-    private String[] suits = {"diamonds","clover","heart","spade"};
-    private String[] values = new String[13];
+    private String[] suits = {"diamonds","clubs","hearts","spades"};
+    private String[] values = {"ace","2","3","4","5","6","7","8","9","10","jack","queen","king"};
     public Deck(){
         initialize();
     }
 
     public void initialize(){
         this.cards = new Stack<>();
-
-        for(int v = 1; v < 14;v++){
-            values[v - 1] = Integer.toString(v);
-        }
 
         for(String suit : suits){
             for(String value : values){

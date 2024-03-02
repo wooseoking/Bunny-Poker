@@ -7,10 +7,10 @@ import lombok.*;
 @Builder
 @Getter @Setter
 public class InGamePlayer {
+
     String playerId;
     String nickName;
     Card[] cards;
-    boolean fold;
     int money;
 
     @Override
@@ -20,6 +20,5 @@ public class InGamePlayer {
         InGamePlayer other = (InGamePlayer) o;
         return playerId.equals(other.playerId);
     }
-
 
 }
