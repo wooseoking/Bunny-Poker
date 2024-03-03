@@ -13,6 +13,7 @@ import java.util.Queue;
 @Builder
 @ToString
 public class GameState {
+    private String gameState;
     private int currentBettingAmount;
     private List<InGamePlayer> inGamePlayerList;
     private Queue<InGamePlayer> waitingPlayerList;

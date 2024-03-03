@@ -32,6 +32,9 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.batch:spring-batch-test'
 
+    // 웹소켓 지원을 위한 Spring Boot Starter 추가
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 
 }

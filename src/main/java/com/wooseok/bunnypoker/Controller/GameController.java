@@ -157,12 +157,23 @@ public class GameController {
         }
     }
 
+    // 현재 게임 상태 정보 요청
+    @GetMapping("/status/{gameRoomName}")
+    public ResponseEntity<?>  gameState(@PathVariable String gameRoomName) {
+        try {
+            GameState gameState = gameService.returnGameState(gameRoomName);
+            return ResponseEntity.ok(gameState);
+        }catch (Exception e){
+            logger.error("Exception occurred while trying to river : " + gameRoomName, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+        }
+    }
     // 게임 끝
     @GetMapping("/winner/{gameRoomName}")
     public ResponseEntity<?>  getWinnerFromRoomName(@PathVariable String gameRoomName) {
         try {
             PlayerWinnerResponse winnerPlayerId = gameService.getWinnerPlayerId(gameRoomName);
-
+            System.out.println("Winner in game room: " + gameRoomName + " is " + winnerPlayerId.getPlayerId() + "!");
             return ResponseEntity.ok(winnerPlayerId);
         }catch (Exception e){
             logger.error("Exception occurred while trying to caculate winner : " + gameRoomName, e);

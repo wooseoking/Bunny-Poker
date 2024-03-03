@@ -159,7 +159,6 @@ public class GameService {
 
     public PlayerWinnerResponse getWinnerPlayerId(String gameRoomName){
         GameRoom gameRoom = gameRoomMap.get(gameRoomName);
-        gameRoom.getWinnerPlayerId();
         return gameRoom.getWinnerPlayerId();
     }
 }

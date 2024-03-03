@@ -20,6 +20,7 @@ import java.util.*;
 @Getter @Setter
 public class GameRoom {
 
+    private String gameState;
     private String roomName;
     private final Queue<InGamePlayer> waitingPlayers;
     private final List<InGamePlayer> inGamePlayers;
@@ -85,6 +86,8 @@ public class GameRoom {
 
         // Initialize minimum betting amount
         this.minimumBettingAmount = this.bigBlind;
+
+        this.gameState = GameStatus.BEFORE_PRE_FLOP.getDescription();
     }
 
     public GameState getGameState(){
@@ -95,6 +98,7 @@ public class GameRoom {
                 .waitingPlayerList(this.waitingPlayers)
                 .cardsOnBoard(this.cardOnBoard)
                 .whoseTurn(this.whoseTurn)
+                .gameState(this.gameState)
                 .build();
     }
     public void addPlayer(InGamePlayer player){
@@ -187,7 +191,7 @@ public class GameRoom {
         }
     }
     public void preFlop(){
-        this.status = GameStatus.PRE_FLOP.getDescription();
+        this.gameState = GameStatus.PRE_FLOP.getDescription();
         // pre-flop 3 card
         int NUM_OF_PRE_FLOP_CARDS = 3;
 
@@ -202,7 +206,7 @@ public class GameRoom {
     }
 
     public void turn(){
-        this.status = GameStatus.TURN.getDescription();
+        this.gameState = GameStatus.TURN.getDescription();
         // 한장 버리기
         deck.drawCard();
 
@@ -211,7 +215,7 @@ public class GameRoom {
     }
 
     public void river(){
-        this.status = GameStatus.RIVER.getDescription();
+        this.gameState = GameStatus.RIVER.getDescription();
         // 한장 버리기
         deck.drawCard();
 
@@ -242,12 +246,11 @@ public class GameRoom {
             }
 
             playerCards.addAll(cardsOnBoardStr);
-            String playerId = inGamePlayer.getPlayerId();
+
+            // 닉네임으로 바꿔줌
+            String playerId = inGamePlayer.getNickName();
 
             playerCardReqList.add(new CardReq(playerId,playerCards));
-
-
-
         }
 
         PlayerCardReq playerCardReq = new PlayerCardReq(playerCardReqList);
